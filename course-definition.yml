@@ -1,0 +1,33 @@
+slug: "lru-cache"
+name: "Build your own LRU Cache"
+short_name: "LRU Cache"
+release_status: "alpha"
+
+description_md: |
+  Learn caching fundamentals by implementing an LRU cache from scratch.
+  Master data structures (doubly-linked list + hash map), O(1) operations, and thread safety.
+
+short_description_md: |
+  Build an LRU cache with O(1) ops
+
+completion_percentage: 5
+
+languages:
+  - slug: "python"
+    release_status: "alpha"
+
+stages:
+  - slug: "s1-basic"
+    name: "Implement basic cache"
+  
+  - slug: "s2-fifo"
+    name: "Implement FIFO eviction"
+  
+  - slug: "s3-lru"
+    name: "Implement LRU eviction"
+  
+  - slug: "s4-optimize"
+    name: "Optimize to O(1) operations"
+  
+  - slug: "s5-thread-safe"
+    name: "Add thread safety"

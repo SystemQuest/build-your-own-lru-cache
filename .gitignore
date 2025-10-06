@@ -1,0 +1,22 @@
+# Course SDK test files
+course-definition-tester
+test_uncommenter.go
+test_uncommenter2.go
+
+# IDE
+.history/
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+
+# Temporary files
+tmp/
+temp/

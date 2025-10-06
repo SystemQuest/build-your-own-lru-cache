@@ -1,0 +1,13 @@
+@@ -0,0 +1,11 @@
++#!/bin/sh
++#
++# This script is used to run your program on SystemQuest
++#
++# This runs after .systemquest/compile.sh
++#
++# Learn more: https://systemquest.dev/program-interface
++
++set -e # Exit on failure
++
++exec pipenv run python3 -m app.main "$@"
+\ No newline at end of file
