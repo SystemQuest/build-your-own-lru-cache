@@ -96,7 +96,7 @@ Course improvements and bug fixes are welcome! Please open an issue or submit a 
 
 ## 📧 Contact
 
-- Website: [https://systemquest.io](https://systemquest.dev)
+- Website: [https://systemquest.dev](https://systemquest.dev)
 - GitHub: [@SystemQuest](https://github.com/SystemQuest)
 
 ---
