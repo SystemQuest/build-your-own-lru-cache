@@ -17,17 +17,17 @@ languages:
     release_status: "alpha"
 
 stages:
-  - slug: "s1-basic"
+  - slug: "jq3"
     name: "Implement basic cache"
   
-  - slug: "s2-fifo"
+  - slug: "ze6"
     name: "Implement FIFO eviction"
   
-  - slug: "s3-lru"
+  - slug: "ch7"
     name: "Implement LRU eviction"
   
-  - slug: "s4-optimize"
+  - slug: "vh5"
     name: "Optimize to O(1) operations"
   
-  - slug: "s5-thread-safe"
+  - slug: "ba6"
     name: "Add thread safety"
