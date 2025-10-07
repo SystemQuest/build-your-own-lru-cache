@@ -15,19 +15,30 @@ completion_percentage: 5
 languages:
   - slug: "python"
     release_status: "alpha"
+  
+  - slug: "go"
+    release_status: "alpha"
+  
+  - slug: "java"
+    release_status: "alpha"
 
 stages:
   - slug: "jq3"
     name: "Implement basic cache"
+    description: "Build a simple key-value cache with GET, PUT, and SIZE operations"
   
   - slug: "ze6"
     name: "Implement FIFO eviction"
+    description: "Add capacity limits and First-In-First-Out eviction policy"
   
   - slug: "ch7"
-    name: "Implement LRU eviction"
+    name: "Implement LRU with built-in data structures"
+    description: "Build LRU cache quickly using language built-ins (OrderedDict/LinkedHashMap/List+Map)"
   
   - slug: "vh5"
-    name: "Optimize to O(1) operations"
+    name: "Implement custom doubly linked list"
+    description: "Build LRU from scratch with HashMap + Doubly Linked List (Interview Essential)"
   
   - slug: "ba6"
-    name: "Add thread safety"
+    name: "Add production features"
+    description: "Add thread safety, monitoring, TTL, and observability (Real World)"

@@ -1,9 +1,9 @@
 # Build your own LRU Cache
 
 [![Course](https://img.shields.io/badge/SystemQuest-Course-blue)](https://systemquest.io)
-[![Language](https://img.shields.io/badge/Language-Python-green)](https://www.python.org/)
+[![Languages](https://img.shields.io/badge/Languages-Python%20%7C%20Go%20%7C%20Java-green)]()
 
-This is a [SystemQuest](https://systemquest.io) course repository for building your own LRU (Least Recently Used) Cache from scratch.
+This is a [SystemQuest](https://systemquest.io) course repository for building your own LRU (Least Recently Used) Cache from scratch in Python, Go, or Java.
 
 ## 📚 Course Overview
 
@@ -11,45 +11,67 @@ In this course, you'll build a fully functional LRU Cache implementation, learni
 
 ### Stages
 
-1. **Stage 1 - Basic Implementation** 
-   - Implement basic cache operations (get, put)
+1. **Stage 1 (jq3) - Basic Cache Operations** 
+   - Implement basic cache operations (INIT, GET, PUT, SIZE)
    - Learn dictionary-based storage
+   - Handle stdin/stdout communication
 
-2. **Stage 2 - FIFO Cache**
+2. **Stage 2 (ze6) - FIFO Eviction**
    - Implement First-In-First-Out eviction policy
-   - Understand queue-based eviction
+   - Understand capacity enforcement
+   - Learn insertion order tracking
 
-3. **Stage 3 - LRU Cache**
+3. **Stage 3 (ch7) - LRU with Built-in Data Structures** ⭐ Quick Win
    - Implement Least Recently Used eviction policy
-   - Use OrderedDict or doubly-linked list + hashmap
+   - Use language built-ins for fast implementation (OrderedDict/LinkedHashMap/List+Map)
+   - Understand access order vs insertion order
 
-4. **Stage 4 - Optimization**
-   - Optimize time complexity to O(1) for all operations
-   - Implement custom doubly-linked list
+4. **Stage 4 (vh5) - Custom Doubly Linked List** ⭐⭐ Core Value
+   - Build LRU from scratch (no OrderedDict!)
+   - Implement HashMap + Doubly Linked List pattern
+   - Master the LeetCode #146 solution
+   - Prove O(1) complexity for all operations
 
-5. **Stage 5 - Thread Safety**
-   - Add thread-safe operations using locks
-   - Handle concurrent access scenarios
+5. **Stage 5 (ba6) - Production Grade** ⭐ Real World
+   - Add thread-safe operations with locks
+   - Implement statistics and monitoring
+   - Support TTL (Time-To-Live) expiration
+   - Build production-ready cache
 
 ## 🚀 Getting Started
 
 ### Prerequisites
 
-- Python 3.13+
-- pipenv
+Choose your language:
+
+- **Python**: Python 3.13+ and pipenv
+- **Go**: Go 1.21+ 
+- **Java**: Java 17+ and Maven/Gradle
 
 ### Running the Course
 
+**Python:**
 ```bash
-# Clone the starter code (will be provided by SystemQuest platform)
 git clone <your-starter-repo-url>
 cd <your-starter-repo>
-
-# Install dependencies
 pipenv install
-
-# Run your implementation
 pipenv run python app/main.py
+```
+
+**Go:**
+```bash
+git clone <your-starter-repo-url>
+cd <your-starter-repo>
+go mod download
+go run ./cmd/main.go
+```
+
+**Java:**
+```bash
+git clone <your-starter-repo-url>
+cd <your-starter-repo>
+mvn compile
+mvn exec:java -Dexec.mainClass="com.systemquest.lrucache.Main"
 ```
 
 ## 📖 Course Structure
@@ -58,18 +80,22 @@ pipenv run python app/main.py
 build-your-own-lru-cache/
 ├── course-definition.yml          # Course metadata and stage definitions
 ├── compiled_starters/             # Compiled starter code for each language
-│   └── python/
+│   ├── python/
+│   ├── go/
+│   └── java/
 ├── solutions/                     # Reference solutions for each stage
-│   └── python/
-│       ├── 01-s1-basic/
-│       ├── 02-s2-fifo/
-│       ├── 03-s3-lru/
-│       ├── 04-s4-optimize/
-│       └── 05-s5-thread-safe/
+│   ├── python/
+│   ├── go/
+│   └── java/
 ├── starter_templates/             # Templates used to generate starters
 │   ├── all/                       # Shared across all languages
-│   └── python/                    # Python-specific templates
+│   ├── python/                    # Python-specific templates
+│   ├── go/                        # Go-specific templates
+│   └── java/                      # Java-specific templates
 └── dockerfiles/                   # Docker images for testing
+    ├── python.Dockerfile
+    ├── go.Dockerfile
+    └── java.Dockerfile
 ```
 
 ## 🛠️ Development
@@ -79,8 +105,10 @@ This repository uses the [course-sdk](https://github.com/SystemQuest/course-sdk-
 ### Compile the course
 
 ```bash
-# Compile Python starters and solutions
+# Compile specific language
 course-sdk compile python
+course-sdk compile go
+course-sdk compile java
 
 # Compile all languages
 course-sdk compile
