@@ -9,22 +9,7 @@ By completing this stage, you will:
 - Understand the LRU (Least Recently Used) eviction policy
 - Learn how access order differs from insertion order
 - Implement efficient O(1) get/put operations with LRU tracking
-- Discover why LRU is supe## Summary
-
-**You've accomplished:**
-- ✅ Implemented LRU eviction (least recently used)
-- ✅ Understood how GET and PUT update access order
-- ✅ Leveraged language built-in data structures for efficiency
-- ✅ Grasped why LRU > FIFO for real-world caches
-- ✅ Achieved O(1) performance for all operations
-
-**Key takeaways:**
-- Access order is critical in LRU (unlike FIFO's insertion order)
-- Both GET and PUT operations update the "recently used" status
-- Efficient implementation requires maintaining both lookup speed and order
-- LRU is the industry standard for most caching scenarios
-
-Keep building! 💪or real-world caches
+- Discover why LRU is superior for real-world caches
 
 ## What is LRU?
 
@@ -175,55 +160,27 @@ LRU caches typically use a combination of two data structures:
 
 ### Implementation Strategy
 
-You need to track which items are "recently used" and which are "least recently used". Here's the challenge:
+The challenge: track which items are "recently used" and which are "least recently used" efficiently.
 
 **Core Questions to Solve:**
 1. How do you efficiently track access order?
 2. How do you quickly find the least recently used item to evict?
 3. How do you update the access order when a key is accessed or updated?
 
+**Think about:**
+- What data structure maintains both O(1) lookup AND order?
+- How can you move an item to represent "recently used"?
+- Where should "most recent" and "least recent" items live?
+
 ### Language-Specific Hints
 
-Different languages provide different built-in data structures that can help:
+| Language | Recommended Data Structure | Why? |
+|----------|---------------------------|------|
+| **Python** | `OrderedDict` from `collections` | Has a `.move_to_end()` method |
+| **Java** | `LinkedHashMap` | Constructor parameter enables access-order |
+| **Go** | `container/list` + `map` | Manual implementation needed |
 
-| Language | Built-in Data Structures | Key Feature |
-|----------|-------------------------|-------------|
-| **Python** | `OrderedDict` from `collections` | Maintains insertion/access order |
-| **Java** | `LinkedHashMap` | Can maintain access order with constructor parameter |
-| **Go** | `container/list` + `map` | Doubly linked list + map combination |
-
-**Hints:**
-- Look for data structures in your language that maintain **order**
-- Consider how you can move items to indicate "recently used"
-- Think about how to efficiently remove the "least recently used" item
-
-### Key Operations to Implement
-
-**For GET:**
-1. Check if key exists
-2. If exists, mark it as "recently used" (update its position in order)
-3. Return the value
-
-**For PUT:**
-1. If key exists:
-   - Update the value
-   - Mark as "recently used"
-2. If key doesn't exist:
-   - Check if at capacity
-   - If at capacity, remove the least recently used item
-   - Add new key-value pair as "most recently used"
-
-### Design Considerations
-
-**What makes an item "recently used"?**
-- Any GET operation on the key
-- Any PUT operation that updates the key
-- A newly inserted key (via PUT)
-
-**What does "access order" mean?**
-- The order should reflect when each key was last touched (GET or PUT)
-- Most recently used should be at one end
-- Least recently used should be at the other end
+**Your task:** Research these data structures in your language's documentation and discover how they help solve the LRU problem.
 
 ### Complexity Target
 
@@ -233,7 +190,7 @@ Your implementation should achieve:
 - `size()`: O(1) time
 - Space: O(capacity)
 
-**Challenge:** Can you achieve O(1) for all operations?
+**Challenge:** Can you achieve O(1) for all operations? 💡
 
 ## Test Cases
 
@@ -385,76 +342,39 @@ make test_stage3
 
 ## Real-World Applications
 
-LRU is used everywhere in production:
+LRU is the industry-standard eviction policy used in:
+- **Web Browsers** - Recently visited pages stay in memory
+- **Databases** - MySQL, PostgreSQL query result caching
+- **In-Memory Stores** - Redis, Memcached (default policy)
+- **Operating Systems** - Page cache for file I/O
 
-1. **Web Browser Cache** 🌐
-   - Keep recently visited pages in memory
-   - Evict old pages you haven't visited in a while
-
-2. **Database Query Cache** 💾
-   - Cache frequent queries
-   - Evict queries that aren't run anymore
-
-3. **CDN Edge Caches** 🌍
-   - Cache popular content close to users
-   - Evict unpopular content
-
-4. **Operating System Page Cache** 🖥️
-   - Keep recently accessed disk pages in RAM
-   - Evict pages that haven't been accessed
-
-5. **Redis/Memcached** 📦
-   - Popular in-memory caching systems
-   - LRU as default eviction policy
-
-## LRU vs Other Policies
-
-| Policy | When to use | Pros | Cons |
-|--------|-------------|------|------|
-| **LRU** | General purpose | High hit rate, intuitive | O(1) with some overhead |
-| **FIFO** | Streaming data | Simple, predictable | Lower hit rate |
-| **LFU** | Frequency matters | Great for hot keys | Doesn't adapt to change |
-| **Random** | Uniform access | Ultra simple | Unpredictable |
-
-**LRU is the sweet spot** for most applications! ⚖️
-
-## Summary
-
-- ✅ Implement LRU eviction (least recently used)
-- ✅ Update access order on **both** GET and PUT
-- ✅ Use `OrderedDict.move_to_end()` for efficiency
-- ✅ Understand why LRU > FIFO for real-world caches
-- ✅ Maintain O(1) time complexity
-
-## What's Next?
-
-Congratulations! 🎉 You've successfully implemented a working LRU cache!
-
-**More stages are coming soon!** Continue building your caching expertise with advanced topics like:
-- Custom data structure implementations
-- Thread safety and concurrency
-- Production-grade features (monitoring, TTL, etc.)
-
-**For now, celebrate your achievement!** You've built a functional LRU cache that works just like those used in Redis and Memcached. 🚀
-
-## Additional Resources
-
-- [LRU Cache (LeetCode #146)](https://leetcode.com/problems/lru-cache/) - The classic interview problem you'll master in Stage 4
-- [Redis Eviction Policies](https://redis.io/docs/reference/eviction/) - How Redis implements LRU
-- [Python OrderedDict Source](https://github.com/python/cpython/blob/main/Lib/collections/__init__.py) - Peek inside the black box
-- [Cache Replacement Policies](https://en.wikipedia.org/wiki/Cache_replacement_policies) - Academic overview
+**Why LRU?** It balances simplicity with effectiveness, achieving high hit rates in most scenarios.
 
 ## Summary
 
 **You've accomplished:**
 - ✅ Implemented LRU eviction (least recently used)
 - ✅ Understood how GET and PUT update access order
-- ✅ Used `OrderedDict` for a clean, working solution
+- ✅ Leveraged language built-in data structures
 - ✅ Grasped why LRU > FIFO for real-world caches
-- ✅ Built a functional cache in ~30 lines of code
+- ✅ Achieved O(1) performance for all operations
 
-**Next milestone:**
-- 🎯 Stage 4: Build it from scratch (no OrderedDict!)
-- 🎯 Stage 5: Make it production-ready
+**Key takeaways:**
+- Access order is critical in LRU (unlike FIFO's insertion order)
+- Both GET and PUT operations update the "recently used" status
+- Efficient implementation requires maintaining both lookup speed and order
+- LRU is the industry standard for most caching scenarios
 
-Keep building! The best is yet to come! �
+## What's Next?
+
+Congratulations! 🎉 You've built a working LRU cache that mirrors production systems like Redis and Memcached.
+
+**More stages coming soon:** Custom data structures, thread safety, and production features.
+
+**Keep building!** 🚀
+
+## Additional Resources
+
+- [LRU Cache (LeetCode #146)](https://leetcode.com/problems/lru-cache/) - Classic interview problem
+- [Redis Eviction Policies](https://redis.io/docs/reference/eviction/) - How Redis implements LRU
+- [Cache Replacement Policies](https://en.wikipedia.org/wiki/Cache_replacement_policies) - Deep dive
