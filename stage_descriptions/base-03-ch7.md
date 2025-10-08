@@ -1,380 +1,316 @@
-# Stage 3: Implement LRU eviction policy
+In this stage, you'll upgrade from FIFO to LRU (Least Recently Used) eviction - the industry-standard cache policy.
 
-In this stage, you'll upgrade from FIFO to LRU (Least Recently Used) eviction policy, the industry-standard cache strategy.
+This is where your cache becomes **production-ready**, matching the behavior of Redis, Memcached, and browser caches.
 
-## Learning Objectives
+### LRU vs FIFO
 
-By completing this stage, you will:
+<details>
+<summary>Background: Why LRU is better</summary>
 
-- Understand the LRU (Least Recently Used) eviction policy
-- Learn how access order differs from insertion order
-- Implement efficient O(1) get/put operations with LRU tracking
-- Discover why LRU is superior for real-world caches
+**FIFO (Stage 2)**: Evicts based on insertion order
+- Simple, predictable
+- Ignores access patterns
+- Bad hit rate for real workloads
 
-## What is LRU?
+**LRU (this stage)**: Evicts based on access order
+- Keeps frequently used items
+- Both `GET` and `PUT` update "recently used" status
+- Much better hit rate in practice
 
-**LRU (Least Recently Used)** is the most common cache eviction policy used in production:
-- When the cache is full and a new item needs to be inserted
-- The **least recently accessed** item is removed to make space
-- Both `GET` and `PUT` operations update the access order
-- Items that are used frequently stay in the cache longer
-
-### The Key Insight
-
-**Access patterns matter!** If you access a key, it's likely you'll access it again soon. LRU keeps frequently accessed items in cache, improving **hit rate**.
-
-### FIFO vs LRU: The Critical Difference
-
-| Policy | Evicts | Updates order on | Best for |
-|--------|--------|------------------|----------|
-| **FIFO** | Oldest inserted | (never) | Simple, predictable eviction |
-| **LRU** | Least recently used | GET and PUT | Real-world caches (web, database) |
-
-**Example demonstrating the difference:**
-
+**Key difference:**
 ```
 Cache capacity: 2
 
-FIFO behavior:
-PUT a 1  →  Cache: {a:1}
-PUT b 2  →  Cache: {a:1, b:2}       (full)
-GET a    →  1  (returns value, no order change)
-PUT c 3  →  Cache: {b:2, c:3}       (evicts 'a' - oldest inserted)
+FIFO:
+PUT a 1  →  {a:1}
+PUT b 2  →  {a:1, b:2}
+GET a    →  1 (no order change)
+PUT c 3  →  {b:2, c:3}  ← evicts 'a' (oldest insertion)
 
-LRU behavior:
-PUT a 1  →  Cache: {a:1}
-PUT b 2  →  Cache: {a:1, b:2}       (full)
-GET a    →  1  (returns value, 'a' becomes most recent!)
-PUT c 3  →  Cache: {a:1, c:3}       (evicts 'b' - least recently used)
+LRU:
+PUT a 1  →  {a:1}
+PUT b 2  →  {a:1, b:2}
+GET a    →  1 (a becomes most recent!)
+PUT c 3  →  {a:1, c:3}  ← evicts 'b' (least recently used)
 ```
 
-**Why LRU wins:** In this scenario, we just accessed `a`, so it's likely we'll need it again. LRU keeps it in cache; FIFO throws it away!
+**Why LRU wins:** We just accessed `a`, so we'll likely need it again. LRU keeps it; FIFO throws it away.
 
-## Command Protocol
-
-All commands from Stage 1-2 remain the same. The key differences:
-
-### 1. GET updates access order
-
-In LRU, **reading** a key makes it "recently used":
-
-```
-INIT 3
-PUT a 1
-PUT b 2
-PUT c 3      # Cache full: {a:1, b:2, c:3}
-GET a        # Access 'a' → now most recent
-PUT d 4      # Evicts 'b' (least recently used), not 'a'!
-```
-
-**Access order after GET a:** `b` (oldest) → `c` → `a` (newest)
-
-### 2. PUT on existing key updates access order
-
-Unlike FIFO, updating a key in LRU makes it "recently used":
-
-```
-INIT 2
-PUT a 1
-PUT b 2      # Cache: {a:1, b:2}
-PUT a 100    # Update 'a' → becomes most recent
-PUT c 3      # Evicts 'b' (least recently used), not 'a'
-```
-
-**LRU order after PUT a 100:** `b` (oldest) → `a` (newest)
-
-### 3. Eviction always removes least recently used
-
-The item that **hasn't been touched the longest** (by GET or PUT) is evicted first.
-
-## Commands
-
-### INIT \<capacity\>
-
-Initialize the cache with LRU eviction policy.
-
-**Example:**
-```
-Input:  INIT 5
-Output: OK
-```
-
-### PUT \<key\> \<value\>
-
-Store or update a key-value pair. **Updates access order** (makes key most recent).
-
-**Example (with eviction):**
-```
-INIT 2
-PUT x 10
-PUT y 20     # Cache: {x:10, y:20}
-GET x        # Access 'x' → x is most recent
-PUT z 30     # Evicts 'y' (least recently used)
-GET y        # Returns NULL (evicted)
-GET z        # Returns '30'
-```
-
-**Example (update existing key):**
-```
-INIT 2
-PUT a 1
-PUT b 2      # Cache: {a:1, b:2}
-PUT a 3      # Update 'a' → 'a' becomes most recent
-PUT c 4      # Evicts 'b', not 'a'
-GET a        # Returns '3' (still in cache)
-GET b        # Returns NULL (evicted)
-```
-
-### GET \<key\>
-
-Retrieve value for a key. **Updates access order** if key exists.
-
-**Example:**
-```
-INIT 2
-PUT a 1
-PUT b 2
-GET a        # Returns '1' AND makes 'a' most recent
-PUT c 3      # Now evicts 'b' (not 'a')
-```
-
-**Returns:** `<value>` or `NULL`
-
-### SIZE
-
-Returns the current number of items in the cache.
-
-**Example:**
-```
-Input:  SIZE
-Output: 3
-```
-
-## Implementation Guide
-
-### The Classic LRU Data Structure
-
-LRU caches typically use a combination of two data structures:
-- **HashMap/Dictionary**: Provides O(1) key lookup
-- **Ordered Data Structure**: Maintains access order for O(1) eviction
-
-### Implementation Strategy
-
-The challenge: track which items are "recently used" and which are "least recently used" efficiently.
-
-**Core Questions to Solve:**
-1. How do you efficiently track access order?
-2. How do you quickly find the least recently used item to evict?
-3. How do you update the access order when a key is accessed or updated?
-
-**Think about:**
-- What data structure maintains both O(1) lookup AND order?
-- How can you move an item to represent "recently used"?
-- Where should "most recent" and "least recent" items live?
-
-### Language-Specific Hints
-
-| Language | Recommended Data Structure | Why? |
-|----------|---------------------------|------|
-| **Python** | `OrderedDict` from `collections` | Has a `.move_to_end()` method |
-| **Java** | `LinkedHashMap` | Constructor parameter enables access-order |
-| **Go** | `container/list` + `map` | Manual implementation needed |
-
-**Your task:** Research these data structures in your language's documentation and discover how they help solve the LRU problem.
-
-### Complexity Target
-
-Your implementation should achieve:
-- `get(key)`: O(1) time
-- `put(key, value)`: O(1) time
-- `size()`: O(1) time
-- Space: O(capacity)
-
-**Challenge:** Can you achieve O(1) for all operations? 💡
-
-## Test Cases
-
-Your implementation will be tested with:
-
-### 1. Basic LRU eviction (GET updates order)
-
-```
-INIT 2
-PUT a 1
-PUT b 2
-GET a        # Access 'a' → becomes most recent
-PUT c 3      # Should evict 'b' (least recently used)
-GET a        # Returns '1' (kept in cache)
-GET b        # Returns NULL (evicted)
-GET c        # Returns '3'
-```
-
-**Expected behavior:** After `GET a`, the order is `b` (oldest) → `a` (newest), so adding `c` evicts `b`.
-
-### 2. LRU vs FIFO (PUT updates order)
-
-```
-INIT 2
-PUT a 1
-PUT b 2
-PUT a 100    # Update 'a' → becomes most recent in LRU
-PUT c 3      # Should evict 'b' (least recently used)
-GET a        # Returns '100' (kept)
-GET b        # Returns NULL (evicted)
-GET c        # Returns '3'
-```
-
-**This is the key difference from FIFO!** In FIFO, `a` would be evicted (oldest insertion). In LRU, `b` is evicted (least recently used).
-
-### 3. Multiple accesses
-
-```
-INIT 3
-PUT a 1
-PUT b 2
-PUT c 3      # Cache full: {a:1, b:2, c:3}
-GET a        # Access 'a'
-GET b        # Access 'b'
-PUT d 4      # Should evict 'c' (only unaccessed key)
-GET c        # Returns NULL (evicted)
-GET a        # Returns '1'
-GET b        # Returns '2'
-GET d        # Returns '4'
-SIZE         # Returns 3
-```
-
-**Expected behavior:** `c` is the only key that wasn't accessed, so it's evicted first.
-
-### 4. Sequential evictions with access pattern
-
-```
-INIT 2
-PUT a 1
-PUT b 2      # Cache: {a:1, b:2}
-PUT c 3      # Evicts 'a' (LRU)
-PUT d 4      # Evicts 'b' (LRU)
-GET c        # Access 'c' → becomes most recent
-PUT e 5      # Should evict 'd' (not 'c')
-GET c        # Returns '3' (kept)
-GET d        # Returns NULL (evicted)
-GET e        # Returns '5'
-```
-
-**Expected behavior:** Accessing `c` protects it from eviction.
-
-## Common Pitfalls to Avoid
-
-### ❌ Pitfall 1: Not updating access order on GET
-
-Remember: In LRU, **reading** a key makes it recently used!
-
-**Wrong approach:**
-- Just return the value without updating position
-
-**Correct approach:**
-- Mark the key as "most recently used" before returning the value
+</details>
 
 ---
 
-### ❌ Pitfall 2: Not updating order when updating existing key
+### Implementation Requirements
 
-Remember: In LRU (unlike FIFO), **updating** a key makes it recently used!
+To pass this stage, your program will need to:
 
-**Wrong approach:**
-- Only update the value, don't change the access order
+1. **Track access order, not just insertion order**
+   - Both `GET` and `PUT` operations must update the access timestamp
+   
+2. **Evict the least recently used item when full**
+   - Not the oldest inserted item (that's FIFO)
+   
+3. **Use an ordered data structure** that supports:
+   - O(1) lookup by key
+   - O(1) reordering (move to end)
+   - O(1) eviction from front
 
-**Correct approach:**
-- Update both the value AND mark as "most recently used"
+**Recommended data structures:**
+- Python: `OrderedDict` (has `.move_to_end()` method)
+- Java: `LinkedHashMap` (with `accessOrder=true` constructor parameter)
+- Go: `container/list` + `map` (manual implementation)
+
+**All operations must remain O(1).**
 
 ---
 
-### ❌ Pitfall 3: Evicting when updating an existing key
+### Tests
 
-**Wrong approach:**
-- Check capacity and evict before checking if key exists
-- This wastes an eviction on a simple update
-
-**Correct approach:**
-- First check if key already exists
-- Only evict if you're adding a NEW key and at capacity
-
----
-
-### ❌ Pitfall 4: Using inefficient data structures
-
-**Wrong approach:**
-- Using only a regular dictionary/map (loses order information)
-- Using only a list (O(n) lookups)
-
-**Correct approach:**
-- Use a data structure that maintains both O(1) lookup AND order
-- Or combine two data structures to achieve both properties
-
-## Testing Your Implementation
-
-Run the tester against your implementation:
+The tester will execute your program like this:
 
 ```bash
-cd /path/to/your/solution
-export SYSTEMQUEST_REPOSITORY_DIR=.
-export SYSTEMQUEST_TEST_CASES_JSON='[{"slug":"ch7","tester_log_prefix":"stage-3.1","title":"LRU Eviction"}]'
-/path/to/lru-cache-tester/dist/tester
+$ ./your_program.sh
 ```
 
-Or use the Makefile:
+It will then send commands to verify LRU behavior. **The tester runs 4 test scenarios** to ensure your implementation correctly handles access order, not insertion order.
+
+#### Test 1: Basic LRU eviction (GET updates order)
 
 ```bash
-make test_stage3
+$ echo -e "INIT 2\nPUT a 1\nPUT b 2\nGET a\nPUT c 3\nGET a\nGET b\nGET c" | ./your_program.sh
+OK
+OK
+OK
+1       # GET a makes 'a' most recent
+OK      # PUT c evicts 'b' (least recently used)
+1       # a still in cache
+NULL    # b was evicted
+3       # c in cache
 ```
 
-## Performance Characteristics
+**Expected behavior:**
+- After `GET a`, the access order is: `b` (least recent) → `a` (most recent)
+- Adding `c` evicts `b`, not `a`
+- If you evict `a` instead, you implemented FIFO, not LRU
 
-| Operation | Time Complexity | Space Complexity |
-|-----------|-----------------|------------------|
-| `get(key)` | O(1) | O(1) |
-| `put(key, value)` | O(1) | O(1) |
-| `size()` | O(1) | O(1) |
-| Overall | O(1) | O(capacity) |
+#### Test 2: LRU vs FIFO (PUT updates order)
 
-**Why O(1)?**
-- HashMap: O(1) lookup
-- OrderedDict/Linked List: O(1) move-to-front, O(1) delete-from-head
+```bash
+$ echo -e "INIT 2\nPUT a 1\nPUT b 2\nPUT a 100\nPUT c 3\nGET a\nGET b\nGET c" | ./your_program.sh
+OK
+OK
+OK
+OK      # PUT a 100 makes 'a' most recent
+OK      # PUT c evicts 'b' (not 'a'!)
+100     # a retained
+NULL    # b evicted
+3       # c in cache
+```
 
-## Real-World Applications
+**This is the key difference from FIFO!**
+- In FIFO: `a` would be evicted (oldest insertion)
+- In LRU: `b` is evicted (least recently used, because `PUT a 100` updated access time)
 
-LRU is the industry-standard eviction policy used in:
-- **Web Browsers** - Recently visited pages stay in memory
-- **Databases** - MySQL, PostgreSQL query result caching
-- **In-Memory Stores** - Redis, Memcached (default policy)
-- **Operating Systems** - Page cache for file I/O
+#### Test 3: Multiple access patterns
 
-**Why LRU?** It balances simplicity with effectiveness, achieving high hit rates in most scenarios.
+```bash
+$ echo -e "INIT 3\nPUT a 1\nPUT b 2\nPUT c 3\nGET a\nGET b\nPUT d 4\nGET a\nGET b\nGET c\nGET d\nSIZE" | ./your_program.sh
+OK
+OK
+OK
+OK
+1       # Access a
+2       # Access b
+OK      # d evicts c (only unaccessed item)
+1       # a in cache
+2       # b in cache
+NULL    # c evicted
+4       # d in cache
+3       # SIZE is 3
+```
 
-## Summary
+**Expected behavior:**
+- `c` is the only item not accessed after insertion
+- When adding `d`, evict `c` (least recently used)
 
-**You've accomplished:**
-- ✅ Implemented LRU eviction (least recently used)
-- ✅ Understood how GET and PUT update access order
-- ✅ Leveraged language built-in data structures
-- ✅ Grasped why LRU > FIFO for real-world caches
-- ✅ Achieved O(1) performance for all operations
+#### Test 4: Sequential evictions
 
-**Key takeaways:**
-- Access order is critical in LRU (unlike FIFO's insertion order)
-- Both GET and PUT operations update the "recently used" status
-- Efficient implementation requires maintaining both lookup speed and order
-- LRU is the industry standard for most caching scenarios
+```bash
+$ echo -e "INIT 2\nPUT a 1\nPUT b 2\nPUT c 3\nPUT d 4\nGET c\nPUT e 5\nGET c\nGET d\nGET e" | ./your_program.sh
+OK
+OK
+OK
+OK      # c evicts a
+OK      # d evicts b
+3       # Access c
+OK      # e evicts d (not c, because c was just accessed)
+3       # c in cache
+NULL    # d evicted
+5       # e in cache
+```
 
-## What's Next?
+**Expected behavior:**
+- Access order is maintained through multiple evictions
+- `GET c` protects `c` from being evicted next
 
-Congratulations! 🎉 You've built a working LRU cache that mirrors production systems like Redis and Memcached.
+---
 
-**More stages coming soon:** Custom data structures, thread safety, and production features.
+### Notes
 
-**Keep building!** 🚀
+<details>
+<summary>OrderedDict in Python</summary>
 
-## Additional Resources
+Python's `OrderedDict` (from `collections`) is perfect for LRU:
 
-- [LRU Cache (LeetCode #146)](https://leetcode.com/problems/lru-cache/) - Classic interview problem
-- [Redis Eviction Policies](https://redis.io/docs/reference/eviction/) - How Redis implements LRU
-- [Cache Replacement Policies](https://en.wikipedia.org/wiki/Cache_replacement_policies) - Deep dive
+```python
+from collections import OrderedDict
+
+class LRUCache:
+    def __init__(self, capacity):
+        self.capacity = capacity
+        self.cache = OrderedDict()
+    
+    def get(self, key):
+        if key not in self.cache:
+            return None
+        # Move to end (mark as recently used)
+        self.cache.move_to_end(key)
+        return self.cache[key]
+    
+    def put(self, key, value):
+        if key in self.cache:
+            # Update existing key - move to end
+            self.cache.move_to_end(key)
+        self.cache[key] = value
+        
+        # Evict LRU if over capacity
+        if len(self.cache) > self.capacity:
+            # popitem(last=False) removes the first (least recent) item
+            self.cache.popitem(last=False)
+```
+
+**Key methods:**
+- `.move_to_end(key)` - Move key to end (most recent)
+- `.popitem(last=False)` - Remove first item (least recent)
+
+</details>
+
+<details>
+<summary>LinkedHashMap in Java</summary>
+
+Java's `LinkedHashMap` can maintain access order:
+
+```java
+import java.util.LinkedHashMap;
+import java.util.Map;
+
+class LRUCache extends LinkedHashMap<String, String> {
+    private int capacity;
+    
+    public LRUCache(int capacity) {
+        // accessOrder=true: maintain access order (not insertion order)
+        super(capacity, 0.75f, true);
+        this.capacity = capacity;
+    }
+    
+    @Override
+    protected boolean removeEldestEntry(Map.Entry<String, String> eldest) {
+        // Automatically evict when size > capacity
+        return size() > capacity;
+    }
+    
+    public String get(String key) {
+        return super.getOrDefault(key, null);
+    }
+}
+```
+
+**Key parameter:**
+- `accessOrder=true` - Automatically reorders on `get()` and `put()`
+- `removeEldestEntry()` - Hook called after each insertion
+
+</details>
+
+<details>
+<summary>Common pitfalls</summary>
+
+**1. Not updating order on GET**
+```python
+# ❌ WRONG - just returns value
+def get(self, key):
+    return self.cache.get(key)
+
+# ✅ CORRECT - updates access order
+def get(self, key):
+    if key not in self.cache:
+        return None
+    self.cache.move_to_end(key)  # Mark as recently used!
+    return self.cache[key]
+```
+
+**2. Not updating order when updating existing key**
+```python
+# ❌ WRONG - doesn't update order
+def put(self, key, value):
+    self.cache[key] = value
+    if len(self.cache) > self.capacity:
+        self.cache.popitem(last=False)
+
+# ✅ CORRECT - updates order before setting value
+def put(self, key, value):
+    if key in self.cache:
+        self.cache.move_to_end(key)  # Update access time!
+    self.cache[key] = value
+    if len(self.cache) > self.capacity:
+        self.cache.popitem(last=False)
+```
+
+**3. Evicting when updating existing key**
+```python
+# ❌ WRONG - evicts even when just updating
+def put(self, key, value):
+    if len(self.cache) >= self.capacity:  # Wrong check!
+        self.cache.popitem(last=False)
+    self.cache[key] = value
+
+# ✅ CORRECT - only evict when adding NEW key
+def put(self, key, value):
+    if key in self.cache:
+        self.cache.move_to_end(key)
+    self.cache[key] = value
+    if len(self.cache) > self.capacity:  # Check AFTER insertion
+        self.cache.popitem(last=False)
+```
+
+</details>
+
+<details>
+<summary>Why not use a regular dict?</summary>
+
+Regular dictionaries/maps don't maintain order (or maintain insertion order, not access order):
+
+```python
+# ❌ Regular dict - no access order tracking
+cache = {}  # Python 3.7+ maintains insertion order, but not access order!
+
+# When you do cache['a'], there's no way to "move it to the end"
+# You'd need to delete and re-insert, which is O(n) in some languages
+```
+
+**Ordered data structures solve this:**
+- They maintain a doubly linked list internally
+- Moving an item to the end is O(1) pointer updates
+- Evicting from the front is O(1) pointer updates
+
+In Stage 4, you'll implement this doubly linked list manually!
+
+</details>
+
+---
+
+### Resources
+
+- [LRU Cache (LeetCode 146)](https://leetcode.com/problems/lru-cache/) - You'll implement this manually in Stage 4
+- [Python OrderedDict](https://docs.python.org/3/library/collections.html#collections.OrderedDict) - Official documentation
+- [Redis LRU Eviction](https://redis.io/docs/reference/eviction/) - How Redis implements LRU in production
+- [Cache Replacement Policies](https://en.wikipedia.org/wiki/Cache_replacement_policies) - Theory behind LRU, LFU, etc.

@@ -1,203 +1,171 @@
-# Stage 1: Implement basic cache
+In this stage, you'll implement a basic key-value cache with `GET`, `PUT`, and `SIZE` operations.
 
-In this stage, you'll implement a basic key-value cache that can store and retrieve items.
+This is the foundation for all future stages - a simple in-memory store with O(1) lookups.
 
-## Learning Objectives
+### Basic Cache Operations
 
-By completing this stage, you will:
+<details>
+<summary>Background: What is a cache?</summary>
 
-- Understand the fundamental concept of a cache as a key-value store
-- Learn to implement `get(key)` and `put(key, value)` operations
-- Use Python's built-in dictionary for O(1) average-case lookup
-- Handle stdin/stdout communication for command processing
+A **cache** is a fast, in-memory key-value store that sits between your application and slower storage (database, disk, network).
 
-## Command Protocol
+**Key concepts:**
+- **Key-value store**: Maps keys to values (like a dictionary/hash map)
+- **O(1) operations**: Lookups and inserts are constant time
+- **Capacity-limited**: Fixed maximum size (enforced in Stage 2+)
 
-Your program should read commands from **stdin** and write responses to **stdout**.
+**Common use cases:**
+- Web applications: Store frequently accessed data (user sessions, API responses)
+- Databases: Cache query results to reduce load
+- Operating systems: Cache disk blocks in memory
 
-### Commands
+**In this stage:**
+- No capacity enforcement (unlimited storage)
+- Simple dictionary-based implementation
+- Focus on correct command handling
 
-#### 1. INIT \<capacity\>
-
-Initialize the cache with a given capacity.
-
-**Arguments:**
-- `capacity`: Maximum number of items the cache can hold (integer)
-
-**Response:** `OK`
-
-**Example:**
-```
-Input:  INIT 10
-Output: OK
-```
-
-**Notes:**
-- In Stage 1, capacity is stored but not enforced (no eviction yet)
-- Eviction logic will be added in Stage 2
+</details>
 
 ---
 
-#### 2. PUT \<key\> \<value\>
+### Implementation Requirements
 
-Store a key-value pair in the cache. If the key already exists, update its value.
+To pass this stage, your program will need to:
 
-**Arguments:**
-- `key`: The key to store (string, no spaces)
-- `value`: The value to associate with the key (string, may contain spaces)
+1. **Read commands from stdin** and write responses to stdout
+   - Commands are line-separated
+   - Parse command format correctly
+   
+2. **Implement 4 commands:**
+   - `INIT <capacity>` - Initialize cache
+   - `PUT <key> <value>` - Store or update key-value pair
+   - `GET <key>` - Retrieve value (return `NULL` if not found)
+   - `SIZE` - Return current number of items
+   
+3. **Use a hash map/dictionary** for O(1) operations
+   - Python: `dict`
+   - Java: `HashMap`
+   - Go: `map`
 
-**Response:** `OK`
-
-**Example:**
-```
-Input:  PUT name Alice
-Output: OK
-
-Input:  PUT message hello world
-Output: OK
-```
-
-**Notes:**
-- Keys cannot contain spaces
-- Values may contain spaces (everything after the key is treated as the value)
-- If key exists, the old value is replaced
+**Note:** In Stage 1, capacity is stored but not enforced. Eviction logic comes in Stage 2.
 
 ---
 
-#### 3. GET \<key\>
+### Tests
 
-Retrieve the value associated with a key.
+The tester will execute your program like this:
 
-**Arguments:**
-- `key`: The key to look up (string)
-
-**Response:** 
-- `<value>` if key exists
-- `NULL` if key doesn't exist
-
-**Example:**
-```
-Input:  GET name
-Output: Alice
-
-Input:  GET age
-Output: NULL
+```bash
+$ ./your_program.sh
 ```
 
-**Notes:**
-- Return exactly `NULL` (not "null", "None", or empty string) for non-existent keys
-- In Stage 1, GET does not affect eviction order
+It will then send commands via stdin. **The tester runs 3 test scenarios** to verify basic cache operations.
+
+#### Test 1: Basic operations
+
+```bash
+$ echo -e "INIT 10\nPUT name Alice\nGET name\nGET age\nPUT name Bob\nGET name" | ./your_program.sh
+OK
+OK
+Alice
+NULL    # 'age' doesn't exist
+OK
+Bob     # 'name' updated to Bob
+```
+
+**Expected behavior:**
+- `INIT` returns `OK`
+- `PUT` stores key-value pairs and returns `OK`
+- `GET` returns the value if key exists, `NULL` if not
+- Updating an existing key replaces the old value
+
+#### Test 2: Multiple keys
+
+```bash
+$ echo -e "INIT 5\nPUT key1 value1\nPUT key2 value2\nPUT key3 value3\nGET key1\nGET key2\nGET key3\nGET key4" | ./your_program.sh
+OK
+OK
+OK
+OK
+value1
+value2
+value3
+NULL    # 'key4' doesn't exist
+```
+
+**Expected behavior:**
+- Cache handles multiple independent keys
+- Each key retrieves its own value
+- Non-existent keys return `NULL`
+
+#### Test 3: Key updates
+
+```bash
+$ echo -e "INIT 10\nPUT name Alice\nGET name\nPUT name Bob\nGET name\nPUT name Charlie\nGET name" | ./your_program.sh
+OK
+OK
+Alice
+OK
+Bob      # Updated
+OK
+Charlie  # Updated again
+```
+
+**Expected behavior:**
+- Updating an existing key replaces its value
+- No error or special handling needed for updates
 
 ---
 
-#### 4. SIZE
+### Notes
 
-Return the current number of items in the cache.
+<details>
+<summary>Simple implementation with dict</summary>
 
-**Arguments:** None
-
-**Response:** `<number>` (current cache size as integer)
-
-**Example:**
-```
-Input:  SIZE
-Output: 3
-```
-
----
-
-## Example Session
-
-Here's a complete interaction demonstrating all commands:
-
-```
-Input:  INIT 10
-Output: OK
-
-Input:  PUT name Alice
-Output: OK
-
-Input:  PUT age 30
-Output: OK
-
-Input:  GET name
-Output: Alice
-
-Input:  GET city
-Output: NULL
-
-Input:  SIZE
-Output: 2
-
-Input:  PUT name Bob
-Output: OK
-
-Input:  GET name
-Output: Bob
-
-Input:  SIZE
-Output: 2
-```
-
-**Key observations:**
-- After `PUT name Bob`, the size remains 2 (key was updated, not added)
-- `GET city` returns `NULL` because the key doesn't exist
-- All commands are processed sequentially
-
----
-
-## Implementation Guide
-
-### Data Structure
-
-Use a Python dictionary to store key-value pairs:
+Python's built-in `dict` is perfect for Stage 1:
 
 ```python
 class LRUCache:
     def __init__(self, capacity: int):
         self.capacity = capacity
         self.cache = {}  # Simple dict for O(1) lookup
+    
+    def get(self, key: str) -> str | None:
+        """Retrieve value by key, return None if not found"""
+        return self.cache.get(key)
+    
+    def put(self, key: str, value: str) -> None:
+        """Store or update key-value pair"""
+        self.cache[key] = value  # Dict handles both insert and update
+    
+    def size(self) -> int:
+        """Return current cache size"""
+        return len(self.cache)
 ```
 
 **Why dict?**
-- O(1) average-case get/put operations
-- Built-in, no external dependencies
-- Perfect for Stage 1 (no eviction needed yet)
+- O(1) average-case lookup and insertion
+- Automatic handling of updates (no manual check needed)
+- Built-in, no dependencies
 
----
+</details>
 
-### Method Signatures
-
-```python
-def get(self, key: str) -> str | None:
-    """Retrieve value by key, return None if not found"""
-    return self.cache.get(key)
-
-def put(self, key: str, value: str) -> None:
-    """Store or update key-value pair"""
-    self.cache[key] = value
-
-def size(self) -> int:
-    """Return current cache size"""
-    return len(self.cache)
-```
-
----
-
-### Command Processing
+<details>
+<summary>Command parsing</summary>
 
 Read commands line by line from stdin:
 
 ```python
 import sys
 
+cache = None
+
 for line in sys.stdin:
     line = line.strip()
     if not line:
         continue
     
-    # Split with maxsplit=2 to allow spaces in values
-    parts = line.split(maxsplit=2)
+    parts = line.split()
     command = parts[0]
     
     if command == "INIT":
@@ -214,219 +182,113 @@ for line in sys.stdin:
     elif command == "GET":
         key = parts[1]
         result = cache.get(key)
-        print(result if result is not None else "NULL")
+        if result is None:
+            print("NULL")  # ← Important: print "NULL", not "None"
+        else:
+            print(result)
     
     elif command == "SIZE":
         print(cache.size())
 ```
 
-**Important:** Use `maxsplit=2` when splitting to preserve spaces in values!
+**Key points:**
+- Use `line.split()` to parse commands
+- Print exactly `"NULL"` for non-existent keys (not `"None"` or empty string)
+- Initialize cache on `INIT` command (not at module level)
 
----
+</details>
 
-## Common Pitfalls
+<details>
+<summary>Common pitfalls</summary>
 
-### 1. ❌ Returning wrong value for missing keys
-
+**1. Returning wrong value for missing keys**
 ```python
-# WRONG: Returns empty string
-def get(self, key):
-    return self.cache.get(key, "")
+# ❌ WRONG - prints "None" instead of "NULL"
+result = cache.get(key)
+print(result)  # Prints "None" for missing keys
 
-# CORRECT: Returns None, print handles NULL
-def get(self, key):
-    return self.cache.get(key)
+# ✅ CORRECT - prints "NULL"
+result = cache.get(key)
+if result is None:
+    print("NULL")
+else:
+    print(result)
 ```
 
-**Remember:** Print `NULL` for non-existent keys, not empty string or "None".
-
----
-
-### 2. ❌ Not handling key updates correctly
-
+**2. Not handling updates correctly**
 ```python
-# WRONG: Always appends, doesn't update
-if key not in self.cache:
-    self.cache[key] = value  # Only adds new keys
+# ❌ WRONG - doesn't update existing keys
+def put(self, key, value):
+    if key not in self.cache:
+        self.cache[key] = value  # Only adds new keys!
 
-# CORRECT: Dict automatically updates
-self.cache[key] = value  # Updates if exists, adds if new
+# ✅ CORRECT - dict handles both insert and update
+def put(self, key, value):
+    self.cache[key] = value  # Works for both new and existing keys
 ```
 
-**Remember:** Python dict automatically handles both insert and update.
-
----
-
-### 3. ❌ Splitting commands incorrectly
-
+**3. Initializing cache at wrong time**
 ```python
-# WRONG: Loses spaces in values
-parts = line.split()  # "PUT msg hello world" -> ["PUT", "msg", "hello", "world"]
-
-# CORRECT: Preserves spaces in values
-parts = line.split(maxsplit=2)  # -> ["PUT", "msg", "hello world"]
-```
-
-**Remember:** Use `maxsplit=2` for PUT command to preserve value spaces.
-
----
-
-### 4. ❌ Not initializing cache before use
-
-```python
-# WRONG: Using cache before INIT
+# ❌ WRONG - creates cache before INIT command
 cache = LRUCache(10)  # At module level
 
-# CORRECT: Initialize on INIT command
+for line in sys.stdin:
+    # ...
+
+# ✅ CORRECT - create cache on INIT command
 cache = None
-if command == "INIT":
-    cache = LRUCache(capacity)
+
+for line in sys.stdin:
+    if command == "INIT":
+        cache = LRUCache(capacity)
 ```
 
-**Remember:** Wait for INIT command before creating cache instance.
-
----
-
-### 5. ❌ Forgetting to implement SIZE
-
+**4. Not implementing SIZE**
 ```python
-# WRONG: SIZE not implemented
+# ❌ WRONG - SIZE not implemented
 elif command == "SIZE":
     print("0")  # Always returns 0
 
-# CORRECT: Return actual cache size
+# ✅ CORRECT - return actual size
 elif command == "SIZE":
-    print(cache.size())
+    print(len(self.cache))
 ```
 
-**Remember:** SIZE should return the actual number of items in the cache.
+</details>
 
----
+<details>
+<summary>Why O(1) for dict operations?</summary>
 
-## Testing Your Implementation
+Python's `dict` uses a hash table internally:
 
-### Manual Testing
+```
+Key → hash(key) → bucket index → value
 
-You can test your implementation manually:
-
-```bash
-cd code
-printf "INIT 10\nPUT name Alice\nGET name\nSIZE\n" | \
-    pipenv run python3 -u -m app.main
+Example:
+"name" → hash("name") = 12345 → bucket[5] → "Alice"
 ```
 
-**Expected output:**
-```
-OK
-OK
-Alice
-1
-```
+**Time complexity:**
+- `get(key)`: O(1) average, O(n) worst case (hash collisions, very rare)
+- `put(key, value)`: O(1) average, O(n) worst case
+- `len(dict)`: O(1) (Python tracks size internally)
+
+**Space complexity:**
+- O(n) where n is the number of items stored
+
+**Why worst case is rare:**
+- Python uses a good hash function
+- Hash table is resized when load factor is too high
+- Collisions are handled with open addressing
+
+In practice, dict operations are effectively O(1).
+
+</details>
 
 ---
 
-### Test Cases
+### Resources
 
-The tester will verify:
-
-1. ✅ **Basic operations** (`s1-basic`)
-   - Cache initialization
-   - Storing key-value pairs
-   - Retrieving existing keys
-   - Handling non-existent keys (NULL)
-
-2. ✅ **Multiple keys** (`s1-multiple-keys`)
-   - Storing multiple different keys
-   - Independent retrieval of each key
-   - Correct SIZE after multiple operations
-
-3. ✅ **Key updates** (`s1-update`)
-   - Updating an existing key's value
-   - Old value is replaced
-   - SIZE doesn't increase on update
-
----
-
-## Tips for Success
-
-1. **Read the protocol carefully**
-   - Commands are case-sensitive
-   - Response format matters (NULL not null)
-   - Line endings are important
-
-2. **Test incrementally**
-   - Test INIT first
-   - Then PUT and GET
-   - Finally SIZE
-   - Build confidence step by step
-
-3. **Use print for output only**
-   - No logging to stderr
-   - No debug messages
-   - Clean stdout for testing
-
-4. **Handle edge cases**
-   - Empty cache (SIZE = 0)
-   - Non-existent keys (return NULL)
-   - Key updates (don't increase size)
-
----
-
-## Performance Notes
-
-### Time Complexity
-
-- **INIT:** O(1)
-- **PUT:** O(1) average case
-- **GET:** O(1) average case
-- **SIZE:** O(1)
-
-### Space Complexity
-
-- **O(n)** where n is the number of items stored
-
-**Why O(1) for dict operations?**
-- Python dict uses hash table implementation
-- Average case is O(1) for lookup and insertion
-- Worst case is O(n) but extremely rare
-
----
-
-## Next Stage Preview
-
-In **Stage 2**, you'll add **FIFO (First-In-First-Out) eviction**:
-
-- Enforce capacity limits
-- Evict oldest inserted item when full
-- Learn about OrderedDict for insertion order tracking
-- Understand the difference between FIFO and LRU
-
-**Key difference from Stage 1:**
-- Stage 1: Unlimited storage (capacity ignored)
-- Stage 2: Limited storage (evict when full)
-
----
-
-## Resources
-
-- [Python dict documentation](https://docs.python.org/3/library/stdtypes.html#dict)
-- [collections.OrderedDict](https://docs.python.org/3/library/collections.html#collections.OrderedDict) (for Stage 2)
-- [LRU Cache on Wikipedia](https://en.wikipedia.org/wiki/Cache_replacement_policies#Least_recently_used_(LRU))
-
----
-
-## Need Help?
-
-If you're stuck:
-
-1. Check your command parsing (use `maxsplit=2`)
-2. Verify NULL vs None handling
-3. Ensure SIZE is implemented
-4. Test with simple manual inputs first
-
-**Common error messages:**
-- "Expected 'OK', got '...'" → Check your print statements
-- "Expected 'NULL', got 'None'" → Convert None to "NULL" when printing
-- "Test timed out" → Check for infinite loops or blocking input
-
-Good luck! 🚀
+- [Python dict documentation](https://docs.python.org/3/library/stdtypes.html#dict) - Official dict reference
+- [Hash table (Wikipedia)](https://en.wikipedia.org/wiki/Hash_table) - Theory behind dict implementation
+- [Big O notation](https://en.wikipedia.org/wiki/Big_O_notation) - Understanding O(1), O(n), etc.

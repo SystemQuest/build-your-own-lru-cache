@@ -1,162 +1,189 @@
-# Stage 2: Implement FIFO eviction policy
+In this stage, you'll add capacity enforcement and implement FIFO (First-In-First-Out) eviction.
 
-In this stage, you'll add capacity enforcement and implement a FIFO (First-In-First-Out) eviction policy.
+FIFO is the simplest eviction policy - like a queue, the oldest item gets evicted first.
 
-## Learning Objectives
+### FIFO Eviction
 
-By completing this stage, you will:
+<details>
+<summary>Background: What is FIFO?</summary>
 
-- Understand cache eviction policies and why they're necessary
-- Implement FIFO (First-In-First-Out) eviction strategy
-- Learn to track insertion order while maintaining O(1) operations
-- Handle capacity limits correctly
+**FIFO (First-In-First-Out)** evicts the oldest inserted item when the cache is full.
 
-## What is FIFO?
-
-**FIFO (First-In-First-Out)** is the simplest cache eviction policy:
-- When the cache is full and a new item needs to be inserted
-- The **oldest** item (first inserted) is removed to make space
-- It's like a queue: first in, first out
-
-### FIFO vs LRU
-
-| Policy | Evicts | Tracks |
-|--------|--------|--------|
-| **FIFO** | Oldest inserted item | Insertion order |
-| **LRU** (Stage 3) | Least recently used item | Access order |
-
-**Example:**
 ```
 Cache capacity: 2
 
-PUT a 1  →  Cache: {a:1}
-PUT b 2  →  Cache: {a:1, b:2}  (full)
-PUT c 3  →  Cache: {b:2, c:3}  (evicted 'a', oldest)
-GET b    →  2  (access doesn't affect FIFO order)
-PUT d 4  →  Cache: {c:3, d:4}  (evicted 'b', oldest)
+PUT a 1  →  {a:1}
+PUT b 2  →  {a:1, b:2}         (full)
+PUT c 3  →  {b:2, c:3}         (evicts 'a', oldest)
+GET b    →  2
+PUT d 4  →  {c:3, d:4}         (evicts 'b', oldest)
 ```
 
-## Command Protocol
+**Key property:** Eviction order is based on **insertion time**, not access time.
 
-All commands from Stage 1 remain the same. The key difference:
+**FIFO vs LRU preview:**
 
-### Capacity Enforcement
+| Policy | Evicts | Tracks | Use case |
+|--------|--------|--------|----------|
+| **FIFO** (this stage) | Oldest inserted | Insertion order | Simple caches, predictable eviction |
+| **LRU** (Stage 3) | Least recently used | Access order | Production caches (Redis, browsers) |
 
-When `PUT` is called and the cache is at full capacity:
-1. Remove the **oldest** item (first inserted)
-2. Insert the new item
-
-### Important Behaviors
-
-#### 1. PUT on existing key does NOT change order
+**Important:** In FIFO, updating an existing key does NOT change its position in the eviction queue.
 
 ```
-INIT 2
-PUT a 1  →  Cache: {a:1}
-PUT b 2  →  Cache: {a:1, b:2}
-PUT a 3  →  Cache: {a:3, b:2}  ⚠️ 'a' updated, order unchanged
-PUT c 4  →  Cache: {b:2, c:4}  (evicted 'a', still oldest)
+PUT a 1  →  {a:1}
+PUT b 2  →  {a:1, b:2}
+PUT a 100 → {a:100, b:2}       ('a' updated but still oldest)
+PUT c 3  →  {b:2, c:3}         (evicts 'a', not 'b')
 ```
 
-**Key point:** Updating an existing key should **not** move it to the end of the insertion order.
+</details>
 
-#### 2. SIZE returns current count
+---
 
-```
-INIT 3
-SIZE     →  0
-PUT a 1  →  OK
-SIZE     →  1
-PUT b 2  →  OK
-PUT c 3  →  OK
-SIZE     →  3
-PUT d 4  →  OK  (evicts 'a')
-SIZE     →  3  (still at capacity)
-```
+### Implementation Requirements
 
-## Commands
+To pass this stage, your program will need to:
 
-### INIT \<capacity\>
+1. **Track insertion order** of keys
+   - Need to know which item was inserted first
+   
+2. **Evict the oldest item when at capacity**
+   - Only evict when adding a NEW key (not when updating)
+   - Check `if key not in cache and len(cache) >= capacity`
+   
+3. **Don't reorder on updates**
+   - Updating an existing key should NOT change its position
+   - Key difference from LRU (coming in Stage 3)
 
-Initialize the cache with a given capacity (same as Stage 1, but now enforced).
+**Recommended approach:**
+- Python: Use `dict` + `list` to track insertion order
+- Or use `OrderedDict` (maintains insertion order)
 
-**Example:**
-```
-Input:  INIT 5
-Output: OK
-```
+**All operations should remain O(1) amortized.**
 
-### PUT \<key\> \<value\>
+---
 
-Store a key-value pair. If at capacity, evict the oldest item first.
+### Tests
 
-**Example (at capacity):**
-```
-INIT 2
-PUT x 10
-PUT y 20
-PUT z 30   # Evicts 'x' (oldest), inserts 'z'
-GET x      # Returns NULL (evicted)
-GET z      # Returns '30'
+The tester will execute your program like this:
+
+```bash
+$ ./your_program.sh
 ```
 
-### GET \<key\>
+It will then send commands to verify FIFO behavior. **The tester runs 3 test scenarios** to ensure your implementation correctly evicts based on insertion order (not access order).
 
-Retrieve value for a key. Returns `NULL` if not found.
+#### Test 1: Basic FIFO eviction
 
-**Example:**
-```
-Input:  GET mykey
-Output: myvalue
-```
-
-or
-
-```
-Input:  GET notfound
-Output: NULL
+```bash
+$ echo -e "INIT 2\nPUT a 1\nPUT b 2\nPUT c 3\nGET a\nGET b\nGET c" | ./your_program.sh
+OK
+OK
+OK
+OK      # PUT c evicts 'a' (oldest)
+NULL    # a was evicted
+2       # b still in cache
+3       # c in cache
 ```
 
-### SIZE
+**Expected behavior:**
+- Cache capacity is 2
+- When `PUT c 3` is called, cache is full
+- Evict `a` (first inserted), not `b`
 
-Returns the current number of items in the cache.
+#### Test 2: Update doesn't change eviction order
 
-**Example:**
+```bash
+$ echo -e "INIT 2\nPUT a 1\nPUT b 2\nPUT a 100\nPUT c 3\nGET a\nGET b\nGET c" | ./your_program.sh
+OK
+OK
+OK
+OK      # PUT a 100 updates value, doesn't change order
+OK      # PUT c evicts 'a' (still oldest!)
+NULL    # a was evicted (not b!)
+2       # b still in cache
+3       # c in cache
 ```
-Input:  SIZE
-Output: 3
+
+**This is the key FIFO property!**
+- `PUT a 100` updates the value but doesn't move `a` to the end
+- `a` is still the oldest inserted item
+- When adding `c`, evict `a` (not `b`)
+
+**Note:** This will be different in LRU (Stage 3), where `PUT a 100` would make `a` "recently used" and protect it from eviction.
+
+#### Test 3: SIZE with eviction
+
+```bash
+$ echo -e "INIT 3\nPUT a 1\nSIZE\nPUT b 2\nPUT c 3\nSIZE\nPUT d 4\nSIZE\nGET a" | ./your_program.sh
+OK
+OK
+1       # SIZE after adding 1 item
+OK
+OK
+3       # SIZE at capacity
+OK      # d evicts a
+3       # SIZE still at capacity (not 4!)
+NULL    # a was evicted
 ```
 
-## Implementation Tips
+**Expected behavior:**
+- SIZE increases as items are added
+- SIZE doesn't exceed capacity
+- SIZE remains at capacity after evictions
 
-### Option 1: Python List (Simple)
+---
 
-Use a list to track insertion order:
+### Notes
+
+<details>
+<summary>Implementation approach: dict + list</summary>
+
+Python 3.7+ dictionaries maintain insertion order, but you still need to track which key to evict:
 
 ```python
 class LRUCache:
     def __init__(self, capacity):
         self.capacity = capacity
-        self.cache = {}        # key -> value
-        self.order = []        # track insertion order
+        self.cache = {}
+        self.insertion_order = []  # Track insertion order
+    
+    def get(self, key):
+        return self.cache.get(key)
     
     def put(self, key, value):
-        if key not in self.cache and len(self.cache) >= self.capacity:
-            # Evict oldest (first in list)
-            oldest = self.order.pop(0)
-            del self.cache[oldest]
+        # If key exists, update value but DON'T change order
+        if key in self.cache:
+            self.cache[key] = value
+            return
         
-        if key not in self.cache:
-            self.order.append(key)  # Only add if new key
+        # If at capacity, evict oldest
+        if len(self.cache) >= self.capacity:
+            oldest_key = self.insertion_order.pop(0)  # Remove first
+            del self.cache[oldest_key]
         
+        # Add new item
         self.cache[key] = value
+        self.insertion_order.append(key)
+    
+    def size(self):
+        return len(self.cache)
 ```
 
-**Complexity:** O(n) for eviction due to `list.pop(0)`
+**Complexity:**
+- `get()`: O(1)
+- `put()`: O(n) worst case due to `list.pop(0)`, O(1) amortized
+- `size()`: O(1)
 
-### Option 2: Python OrderedDict (Better)
+**Note:** `list.pop(0)` is O(n), but for small caches this is acceptable. In Stage 4, you'll learn how to achieve true O(1) with a doubly linked list.
 
-Use `collections.OrderedDict` which maintains insertion order:
+</details>
+
+<details>
+<summary>Alternative: OrderedDict (Python)</summary>
+
+Python's `OrderedDict` can also work for FIFO:
 
 ```python
 from collections import OrderedDict
@@ -166,129 +193,138 @@ class LRUCache:
         self.capacity = capacity
         self.cache = OrderedDict()
     
+    def get(self, key):
+        return self.cache.get(key)
+    
     def put(self, key, value):
-        if key not in self.cache and len(self.cache) >= self.capacity:
-            # Evict oldest (FIFO)
+        # If key exists, update without reordering
+        if key in self.cache:
+            self.cache[key] = value
+            return
+        
+        # If at capacity, evict oldest
+        if len(self.cache) >= self.capacity:
             self.cache.popitem(last=False)  # Remove first item
         
-        if key in self.cache:
-            # Update without changing order (for FIFO)
-            self.cache[key] = value
-        else:
-            # Add new key
-            self.cache[key] = value
+        # Add new item
+        self.cache[key] = value
+    
+    def size(self):
+        return len(self.cache)
 ```
 
-**Complexity:** O(1) average case
+**Key method:**
+- `.popitem(last=False)` - Removes the first (oldest) item in O(1)
 
-## Test Cases
+**Caveat:** Don't use `.move_to_end()` in this stage - that's for LRU (Stage 3)!
 
-Your implementation will be tested with:
+</details>
 
-1. **Basic FIFO eviction**
-   ```
-   INIT 2
-   PUT 1 one
-   PUT 2 two
-   PUT 3 three  # Should evict '1'
-   GET 1        # Should return NULL
-   GET 2        # Should return 'two'
-   GET 3        # Should return 'three'
-   ```
+<details>
+<summary>Common pitfalls</summary>
 
-2. **Update existing key (order unchanged)**
-   ```
-   INIT 2
-   PUT a 1
-   PUT b 2
-   PUT a 3      # Update 'a', doesn't move to end
-   PUT c 4      # Should evict 'a' (still oldest)
-   GET a        # Should return NULL
-   ```
-
-3. **SIZE with eviction**
-   ```
-   INIT 3
-   PUT x 1
-   PUT y 2
-   PUT z 3
-   SIZE         # Returns 3
-   PUT w 4      # Evicts oldest
-   SIZE         # Still returns 3
-   ```
-
-## Common Mistakes
-
-❌ **Moving updated keys to end of order**
+**1. Reordering on update (wrong for FIFO)**
 ```python
-# WRONG for FIFO
-if key in self.cache:
-    self.order.remove(key)
-    self.order.append(key)  # Don't do this!
+# ❌ WRONG - this is LRU behavior, not FIFO!
+def put(self, key, value):
+    if key in self.cache:
+        # Don't remove and re-add for FIFO!
+        self.insertion_order.remove(key)
+        self.insertion_order.append(key)
+    # ...
+
+# ✅ CORRECT - FIFO doesn't reorder on update
+def put(self, key, value):
+    if key in self.cache:
+        self.cache[key] = value  # Just update value
+        return  # Don't change order!
+    # ...
 ```
 
-✅ **Correct: Only track order for new keys**
+**2. Evicting when updating existing key**
 ```python
-# CORRECT for FIFO
-if key not in self.cache:
-    self.order.append(key)  # Only add if new
+# ❌ WRONG - evicts even when just updating
+def put(self, key, value):
+    if len(self.cache) >= self.capacity:
+        # This will evict even if key already exists!
+        oldest = self.insertion_order.pop(0)
+        del self.cache[oldest]
+    self.cache[key] = value
+
+# ✅ CORRECT - only evict when adding NEW key
+def put(self, key, value):
+    if key in self.cache:
+        self.cache[key] = value
+        return
+    
+    # Only evict if adding NEW key at capacity
+    if len(self.cache) >= self.capacity:
+        oldest = self.insertion_order.pop(0)
+        del self.cache[oldest]
+    
+    self.cache[key] = value
+    self.insertion_order.append(key)
 ```
+
+**3. Not removing from insertion_order list**
+```python
+# ❌ WRONG - memory leak, list grows forever
+def put(self, key, value):
+    if len(self.cache) >= self.capacity:
+        oldest = self.insertion_order.pop(0)
+        # Forgot to delete from cache!
+    self.cache[key] = value
+    self.insertion_order.append(key)
+
+# ✅ CORRECT - remove from BOTH structures
+def put(self, key, value):
+    if key in self.cache:
+        self.cache[key] = value
+        return
+    
+    if len(self.cache) >= self.capacity:
+        oldest = self.insertion_order.pop(0)
+        del self.cache[oldest]  # Also delete from cache!
+    
+    self.cache[key] = value
+    self.insertion_order.append(key)
+```
+
+</details>
+
+<details>
+<summary>FIFO vs LRU comparison</summary>
+
+Understanding FIFO helps you appreciate LRU (Stage 3):
+
+**FIFO example:**
+```
+INIT 2
+PUT a 1  →  {a:1}
+PUT b 2  →  {a:1, b:2}
+GET a    →  1 (no order change in FIFO!)
+PUT c 3  →  {b:2, c:3} (evicts 'a')
+```
+
+**LRU example (Stage 3 preview):**
+```
+INIT 2
+PUT a 1  →  {a:1}
+PUT b 2  →  {a:1, b:2}
+GET a    →  1 (moves 'a' to end - "recently used")
+PUT c 3  →  {a:1, c:3} (evicts 'b', not 'a'!)
+```
+
+**Key difference:** LRU tracks **access order**, FIFO tracks **insertion order**.
+
+In real-world caches, LRU is almost always better because frequently accessed items stay in cache longer.
+
+</details>
 
 ---
 
-❌ **Forgetting to check capacity before adding**
-```python
-# WRONG
-def put(self, key, value):
-    if len(self.cache) >= self.capacity:
-        # This will evict even when updating existing key!
-        self.cache.popitem(last=False)
-```
+### Resources
 
-✅ **Correct: Only evict if adding NEW key**
-```python
-# CORRECT
-def put(self, key, value):
-    if key not in self.cache and len(self.cache) >= self.capacity:
-        self.cache.popitem(last=False)
-```
-
-## Testing Your Implementation
-
-Run the tester against your implementation:
-
-```bash
-cd /path/to/your/solution
-SYSTEMQUEST_REPOSITORY_DIR=. /path/to/lru-cache-tester/dist/tester
-```
-
-Or use the test script:
-
-```bash
-make test_stage2
-```
-
-## What's Next?
-
-In **Stage 3**, you'll upgrade from FIFO to **LRU (Least Recently Used)** eviction:
-- Track **access order** (not just insertion order)
-- Evict the **least recently accessed** item
-- Update order on both `GET` and `PUT` operations
-
-FIFO is simple but not optimal. LRU is the industry-standard cache eviction policy! 🚀
-
-## Additional Resources
-
-- [Cache Replacement Policies (Wikipedia)](https://en.wikipedia.org/wiki/Cache_replacement_policies)
-- [Python OrderedDict Documentation](https://docs.python.org/3/library/collections.html#collections.OrderedDict)
-- FIFO vs LRU: Understanding the difference
-
-## Summary
-
-- ✅ Implement capacity enforcement
-- ✅ Evict oldest item when full (FIFO)
-- ✅ Maintain insertion order
-- ✅ Don't reorder on key updates
-- ✅ SIZE returns current count
-
-Good luck! 💪
+- [Cache Replacement Policies (Wikipedia)](https://en.wikipedia.org/wiki/Cache_replacement_policies) - Overview of FIFO, LRU, LFU, etc.
+- [Python OrderedDict](https://docs.python.org/3/library/collections.html#collections.OrderedDict) - Official documentation
+- [Amortized Analysis](https://en.wikipedia.org/wiki/Amortized_analysis) - Why `list.pop(0)` is O(1) amortized for small caches
