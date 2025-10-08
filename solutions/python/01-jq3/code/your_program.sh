@@ -12,4 +12,4 @@ set -e # Exit early if any commands fail
 #
 # - Edit this to change how your program runs locally
 # - Edit .systemquest/run.sh to change how your program runs remotely
-PYTHONPATH=$(dirname $0) exec python3 -m app.main "$@"
+exec pipenv run python3 -m app.main "$@"

@@ -22,16 +22,22 @@ The entry point for your LRU Cache implementation is in `{{user_editable_file}}`
 INIT 10       # Initialize cache with capacity 10
 PUT k1 v1     # Store key-value pair
 GET k1        # Retrieve value by key
+DELETE k1     # Delete key from cache
+EXISTS k1     # Check if key exists
 SIZE          # Get current cache size
+EXPIRE k1 30  # Set key to expire after 30 seconds
+STATS         # Get cache statistics
 ```
 
 ## Challenge Stages
 
-- **Stage 1**: Basic cache operations (INIT, PUT, GET)
-- **Stage 2**: FIFO eviction
-- **Stage 3**: LRU eviction
-- **Stage 4**: O(1) operations
-- **Stage 5**: Thread safety
+- **Stage 1**: Basic cache operations (GET, PUT, SIZE)
+- **Stage 2**: FIFO eviction with capacity limits
+- **Stage 3**: LRU eviction using built-in data structures
+- **Stage 4**: Custom doubly linked list implementation (Interview Essential)
+- **Stage 5**: Thread safety with locks
+- **Stage 6**: TTL expiration support
+- **Stage 7**: Cache statistics and observability
 
 ## Learn More
 

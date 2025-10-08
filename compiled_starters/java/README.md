@@ -1,6 +1,6 @@
 # Build Your Own LRU Cache
 
-This is a starting point for Python solutions to the **"Build Your Own LRU
+This is a starting point for Java solutions to the **"Build Your Own LRU
 Cache"** challenge.
 
 An LRU (Least Recently Used) cache is a data structure that stores a limited
@@ -8,7 +8,8 @@ number of items and removes the least recently used item when the cache is full.
 
 ## Quick Start
 
-The entry point for your LRU Cache implementation is in `app/main.py`.
+The entry point for your LRU Cache implementation is in
+`src/main/java/Main.java`.
 
 ### Run locally
 

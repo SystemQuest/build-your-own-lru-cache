@@ -15,6 +15,10 @@ return self.cache.get(key)
 self.cache[key] = value
 ```
 
+```python
+return len(self.cache)
+```
+
 Push your changes to pass the first stage:
 
 ```

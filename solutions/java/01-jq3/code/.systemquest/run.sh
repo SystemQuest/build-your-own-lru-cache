@@ -8,4 +8,4 @@
 
 set -e # Exit on failure
 
-exec pipenv run python3 -m app.main "$@"
+exec java -jar /tmp/systemquest-build-lru-cache-java/systemquest-lru-cache.jar "$@"

@@ -7,19 +7,21 @@ class LRUCache:
         # Uncomment this to pass the first stage
         # self.capacity = capacity
         # self.cache = {}
-        pass
     
     def get(self, key: str) -> str | None:
         """Get value by key, return None if not found"""
         # Uncomment this to pass the first stage
         # return self.cache.get(key)
-        pass
     
     def put(self, key: str, value: str) -> None:
         """Insert or update key-value pair"""
         # Uncomment this to pass the first stage
         # self.cache[key] = value
-        pass
+    
+    def size(self) -> int:
+        """Return the number of items in the cache"""
+        # Uncomment this to pass the first stage
+        # return len(self.cache)
 
 
 def main():
@@ -65,8 +67,7 @@ def main():
             if cache is None:
                 print("ERROR: Cache not initialized")
                 continue
-            # TODO: Implement size() method in LRUCache
-            print("0")
+            print(cache.size())
         
         else:
             print(f"ERROR: Unknown command: {command}")

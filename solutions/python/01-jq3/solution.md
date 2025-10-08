@@ -21,6 +21,12 @@ File: app/main.py
 self.cache[key] = value
 ```
 
+```python
+File: app/main.py
+
+return len(self.cache)
+```
+
 Push your changes to pass the first stage:
 
 ```
