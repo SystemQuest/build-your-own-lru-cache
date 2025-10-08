@@ -32,11 +32,23 @@ In this course, you'll build a fully functional LRU Cache implementation, learni
    - Master the LeetCode #146 solution
    - Prove O(1) complexity for all operations
 
-5. **Stage 5 (ba6) - Production Grade** ⭐ Real World
-   - Add thread-safe operations with locks
-   - Implement statistics and monitoring
-   - Support TTL (Time-To-Live) expiration
-   - Build production-ready cache
+5. **Stage 5 (ba6) - Thread Safety** ⭐ Concurrency
+   - Make your cache thread-safe with locks
+   - Handle concurrent read/write operations
+   - Learn Read-Write locks optimization
+   - Support multi-threaded workloads
+
+6. **Stage 6 (xy7) - TTL Expiration** ⭐ Time-based
+   - Support Time-To-Live for cache entries
+   - Implement lazy deletion on access
+   - Add active cleanup background process
+   - Handle expired entry eviction
+
+7. **Stage 7 (st8) - Cache Statistics** ⭐ Observability
+   - Implement comprehensive metrics tracking
+   - Calculate hit rate and miss rate
+   - Monitor eviction count and memory usage
+   - Build production-ready observability
 
 ## 🚀 Getting Started
 

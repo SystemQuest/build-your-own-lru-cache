@@ -40,5 +40,13 @@ stages:
     description: "Build LRU from scratch with HashMap + Doubly Linked List (Interview Essential)"
   
   - slug: "ba6"
-    name: "Add production features"
-    description: "Add thread safety, monitoring, TTL, and observability (Real World)"
+    name: "Add thread safety"
+    description: "Make your cache thread-safe with locks (Read locks, Write locks, Lock-free reads)"
+  
+  - slug: "xy7"
+    name: "Add TTL expiration"
+    description: "Support Time-To-Live expiration with lazy deletion and active cleanup"
+  
+  - slug: "st8"
+    name: "Add cache statistics"
+    description: "Implement metrics and observability (hit rate, eviction count, memory usage)"
