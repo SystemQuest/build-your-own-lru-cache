@@ -113,7 +113,7 @@ OK      # b added
 OK      # c added, should evict a (not b!)
 NULL    # a was evicted
 4       # b is still in cache
-3       # c is in cache
+5       # c is in cache (value is 5, not 3!)
 ```
 
 **Expected behavior:**

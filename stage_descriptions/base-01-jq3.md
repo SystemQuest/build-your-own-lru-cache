@@ -59,7 +59,12 @@ The tester will execute your program like this:
 $ ./your_program.sh
 ```
 
-It will then send commands via stdin. **The tester runs 3 test scenarios** to verify basic cache operations.
+It will then send commands via stdin. **The tester runs 4 test scenarios** to verify basic cache operations:
+
+1. **Test 1**: Basic operations (INIT, PUT, GET, NULL handling, updates)
+2. **Test 2**: Multiple keys (independent key management)
+3. **Test 3**: Key updates (value replacement)
+4. **Test 4**: SIZE command (tracking cache size)
 
 #### Test 1: Basic operations
 
@@ -114,6 +119,30 @@ Charlie  # Updated again
 **Expected behavior:**
 - Updating an existing key replaces its value
 - No error or special handling needed for updates
+
+#### Test 4: SIZE command
+
+```bash
+$ echo -e "INIT 10\nSIZE\nPUT key1 value1\nSIZE\nPUT key2 value2\nPUT key3 value3\nSIZE\nPUT key1 updated\nSIZE\nGET key2\nSIZE" | ./your_program.sh
+OK
+0        # Cache is empty
+OK
+1        # One item added
+OK
+OK
+3        # Three items total
+OK
+3        # Update doesn't change size
+value2
+3        # GET doesn't change size
+```
+
+**Expected behavior:**
+- `SIZE` returns the current number of items in the cache
+- Initial cache size is 0
+- Size increases when new keys are added
+- Updating an existing key does NOT increase size
+- GET operations do NOT change size
 
 ---
 
