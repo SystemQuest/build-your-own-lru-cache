@@ -37,19 +37,21 @@ Thread 2: with lock: cache.put("b", "2")  # Waits for Thread 1
 **Read-Write Lock** (multiple readers, one writer):
 - Java: `ReentrantReadWriteLock`
 - Go: `sync.RWMutex`
-- Multiple GET operations can run concurrently
-- Only PUT blocks everything
-- Good for: read-heavy workloads (>70% reads)
+- Multiple SIZE operations can run concurrently
+- GET and PUT use write locks (modify DLL structure)
+- Good for: SIZE-heavy workloads
 
 **Performance comparison:**
 
 | Workload | Exclusive Lock | Read-Write Lock |
 |----------|----------------|-----------------|
-| 90% reads | ~100 ops/sec | ~900 ops/sec (9x faster) |
-| 50% reads | ~150 ops/sec | ~300 ops/sec (2x faster) |
+| 90% SIZE | ~100 ops/sec | ~900 ops/sec (9x faster) |
+| 50% SIZE | ~150 ops/sec | ~300 ops/sec (2x faster) |
 | 90% writes | ~100 ops/sec | ~100 ops/sec (same) |
 
-For this stage, Python uses **exclusive lock** (simpler), Java/Go use **read-write lock** (better performance).
+**Important for LRU Cache**: In an LRU cache, GET modifies the access order (moves node to head), so it needs a **write lock**, not a read lock. Only SIZE is truly read-only and can use a read lock. This means read-write locks have limited benefit compared to exclusive locks for typical LRU workloads.
+
+For this stage, Python uses **exclusive lock** (simpler), Java/Go use **read-write lock** (allows concurrent SIZE operations).
 
 </details>
 
@@ -207,19 +209,19 @@ class LRUCache {
     private final ReentrantReadWriteLock rwLock = new ReentrantReadWriteLock();
     
     public String get(String key) {
-        rwLock.readLock().lock();
+        rwLock.writeLock().lock();  // WRITE lock - GET modifies DLL!
         try {
             if (!cache.containsKey(key)) return null;
             Node node = cache.get(key);
-            moveToHead(node);
+            moveToHead(node);  // Modifies doubly linked list structure
             return node.value;
         } finally {
-            rwLock.readLock().unlock();
+            rwLock.writeLock().unlock();
         }
     }
     
     public void put(String key, String value) {
-        rwLock.writeLock().lock();
+        rwLock.writeLock().lock();  // Write lock - modifies cache
         try {
             if (cache.containsKey(key)) {
                 Node node = cache.get(key);
@@ -237,7 +239,7 @@ class LRUCache {
     }
     
     public int size() {
-        rwLock.readLock().lock();
+        rwLock.readLock().lock();  // READ lock - only reads, doesn't modify
         try {
             return cache.size();
         } finally {
@@ -246,6 +248,11 @@ class LRUCache {
     }
 }
 ```
+
+**Why GET needs write lock:**
+- `moveToHead()` modifies the doubly linked list (updates 4+ pointers)
+- Multiple concurrent GETs with read locks would corrupt the DLL
+- Only SIZE can use read lock because it's truly read-only
 
 </details>
 

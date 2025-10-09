@@ -177,28 +177,28 @@ class Node {
 }
 
 public String get(String key) {
-    writeLock.lock();  // Might delete expired entry
+    rwLock.writeLock().lock();  // WRITE lock - removes expired entries + moves node
     try {
         if (!cache.containsKey(key)) return null;
         
         Node node = cache.get(key);
         
-        // Lazy deletion
+        // Lazy deletion - removes expired entry
         if (node.expireAt != null && System.currentTimeMillis() >= node.expireAt) {
             removeNode(node);
             cache.remove(key);
             return null;
         }
         
-        moveToHead(node);
+        moveToHead(node);  // Modifies DLL
         return node.value;
     } finally {
-        writeLock.unlock();
+        rwLock.writeLock().unlock();
     }
 }
 
 public void put(String key, String value, Integer ttlSeconds) {
-    writeLock.lock();
+    rwLock.writeLock().lock();  // Write lock - modifies cache
     try {
         Long expireAt = ttlSeconds != null 
             ? System.currentTimeMillis() + (ttlSeconds * 1000L)
@@ -206,9 +206,26 @@ public void put(String key, String value, Integer ttlSeconds) {
         
         // ... update or create node with expireAt
     } finally {
-        writeLock.unlock();
+        rwLock.writeLock().unlock();
     }
 }
+
+public int size() {
+    rwLock.readLock().lock();  // READ lock - only reads, doesn't modify
+    try {
+        return cache.size();
+    } finally {
+        rwLock.readLock().unlock();
+    }
+}
+```
+
+**Why GET needs write lock in Stage 6:**
+- Removes expired entries (modifies HashMap and DLL)
+- Moves accessed node to head (modifies DLL)
+- Only SIZE can use read lock (truly read-only)
+
+```
 ```
 
 </details>

@@ -83,7 +83,7 @@ To pass this stage, your program will need to:
    - `capacity`: Maximum capacity
 
 2. **Increment counters atomically** (inside locks):
-   - `hits++` when GET returns a value (before expiration check)
+   - `hits++` when GET returns a value (key found and not expired)
    - `misses++` when GET returns NULL (key not found OR expired)
    - `evictions++` when removing LRU item due to capacity
    - `expirations++` when removing item due to TTL expiration
